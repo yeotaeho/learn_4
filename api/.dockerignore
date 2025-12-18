@@ -1,0 +1,36 @@
+# 로컬 모델 파일 (볼륨으로 마운트)
+model_weights/
+*.safetensors
+*.bin
+*.pt
+*.pth
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# 환경
+.env
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# 기타
+README.md
+*.md
+

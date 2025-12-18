@@ -1,0 +1,24 @@
+services:
+  # FastAPI RAG 챗봇 API 서버
+  api-server:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: langchain-api-server
+    restart: unless-stopped
+    environment:
+      - LLM_PROVIDER=local
+      - LOCAL_MODEL_PATH=/api/model_weights
+      - LOCAL_MODEL_DEVICE=cpu
+      - LOCAL_MODEL_MAX_NEW_TOKENS=512
+      - LOCAL_MODEL_TEMPERATURE=0.7
+      - DATABASE_URL=postgresql://neondb_owner:npg_pzP8wiQDH1sk@ep-autumn-boat-a1wcjk8g-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+      - DEBUG=false
+    volumes:
+      - ./api/model_weights:/api/model_weights:ro
+    ports:
+      - "8000:8000"
+
+networks:
+  default:
+    driver: bridge

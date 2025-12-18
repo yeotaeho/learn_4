@@ -1,0 +1,31 @@
+# FastAPI 프레임워크
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# 환경변수
+python-dotenv>=1.0.0
+
+# LangChain
+langchain-core>=0.1.0
+langchain-community>=0.0.20
+langchain-huggingface>=0.0.1
+langchain-openai>=0.0.1
+
+# 데이터베이스
+psycopg2-binary>=2.9.0
+pgvector>=0.2.0
+sqlalchemy>=2.0.0
+
+# HuggingFace 로컬 모델
+transformers>=4.40.0
+torch>=2.0.0
+accelerate>=0.27.0
+sentencepiece>=0.1.99
+sentence-transformers>=2.2.0
+
+# QLoRA 및 파인튜닝
+peft>=0.7.0
+datasets>=2.14.0
+bitsandbytes>=0.41.0
