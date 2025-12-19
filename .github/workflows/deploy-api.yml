@@ -67,6 +67,31 @@ jobs:
           echo "⚠️ known_hosts file was not created, but continuing..."
         fi
 
+    - name: Test SSH connection
+      working-directory: ${{ github.workspace }}
+      env:
+        EC2_USER: ${{ secrets.EC2_USER }}
+        EC2_HOST: ${{ secrets.EC2_HOST }}
+      run: |
+        echo "🔍 Testing SSH connection to EC2..."
+        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1)
+        echo "Host: $HOST_ONLY"
+        echo "User: $EC2_USER"
+        
+        # 연결 테스트 (타임아웃 10초)
+        timeout 10 ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new \
+          -o UserKnownHostsFile=$HOME/.ssh/known_hosts \
+          $EC2_USER@$HOST_ONLY "echo 'SSH connection successful'" || {
+          echo "❌ SSH connection failed!"
+          echo "Possible causes:"
+          echo "1. EC2 instance is not running"
+          echo "2. Security group doesn't allow SSH from GitHub Actions IP"
+          echo "3. EC2_HOST secret is incorrect"
+          echo "4. Network connectivity issue"
+          exit 1
+        }
+        echo "✅ SSH connection test passed"
+
     - name: Deploy to EC2
       working-directory: ${{ github.workspace }}/api
       env:
@@ -74,10 +99,17 @@ jobs:
         EC2_HOST: ${{ secrets.EC2_HOST }}
       run: |
         echo "🚀 Deploying to EC2..."
-        rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts" \
+        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1)
+        echo "Deploying to: $EC2_USER@$HOST_ONLY"
+        
+        rsync -avz -e "ssh -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts" \
           --exclude 'model_weights' --exclude '__pycache__' \
           --exclude '*.pyc' --exclude '.pytest_cache' --exclude 'venv' \
-          ./ $EC2_USER@$EC2_HOST:~/api/
+          ./ $EC2_USER@$HOST_ONLY:~/api/ || {
+          echo "❌ rsync failed!"
+          echo "Check if EC2 instance is running and accessible"
+          exit 1
+        }
         echo "✅ Files transferred successfully"
 
     - name: Install dependencies and restart service
@@ -86,8 +118,9 @@ jobs:
         EC2_USER: ${{ secrets.EC2_USER }}
         EC2_HOST: ${{ secrets.EC2_HOST }}
       run: |
-        ssh -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts \
-          $EC2_USER@$EC2_HOST << 'EOF'
+        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1)
+        ssh -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts \
+          $EC2_USER@$HOST_ONLY << 'EOF'
           cd ~/api
 
           echo "📦 Setting up Python virtual environment..."
