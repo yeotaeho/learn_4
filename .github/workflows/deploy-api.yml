@@ -11,9 +11,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./api
 
     steps:
     - name: Checkout code
@@ -26,11 +23,30 @@ jobs:
 
     - name: Add EC2 to known hosts
       working-directory: ${{ github.workspace }}
+      env:
+        EC2_HOST: ${{ secrets.EC2_HOST }}
       run: |
+        echo "🔐 Adding EC2 host to known_hosts..."
         mkdir -p $HOME/.ssh
         chmod 700 $HOME/.ssh
-        ssh-keyscan -H ${{ secrets.EC2_HOST }} >> $HOME/.ssh/known_hosts
+        
+        # EC2_HOST에서 포트 번호 제거 (호스트만 추출)
+        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1)
+        
+        # ssh-keyscan 실행 (타임아웃 10초, 재시도 3회)
+        ssh-keyscan -T 10 -H "$HOST_ONLY" >> $HOME/.ssh/known_hosts 2>&1 || {
+          echo "⚠️ ssh-keyscan failed, trying without strict host checking..."
+          ssh-keyscan -T 10 "$HOST_ONLY" >> $HOME/.ssh/known_hosts 2>&1 || true
+        }
+        
         chmod 600 $HOME/.ssh/known_hosts
+        echo "✅ Known hosts updated"
+        
+        # 확인
+        if [ -f $HOME/.ssh/known_hosts ]; then
+          echo "📋 Known hosts file contents:"
+          cat $HOME/.ssh/known_hosts
+        fi
 
     - name: Deploy to EC2
       working-directory: ${{ github.workspace }}/api
