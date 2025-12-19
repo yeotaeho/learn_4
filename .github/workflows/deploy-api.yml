@@ -29,23 +29,42 @@ jobs:
         echo "🔐 Adding EC2 host to known_hosts..."
         mkdir -p $HOME/.ssh
         chmod 700 $HOME/.ssh
-        
+
         # EC2_HOST에서 포트 번호 제거 (호스트만 추출)
         HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1)
-        
-        # ssh-keyscan 실행 (타임아웃 10초, 재시도 3회)
-        ssh-keyscan -T 10 -H "$HOST_ONLY" >> $HOME/.ssh/known_hosts 2>&1 || {
-          echo "⚠️ ssh-keyscan failed, trying without strict host checking..."
-          ssh-keyscan -T 10 "$HOST_ONLY" >> $HOME/.ssh/known_hosts 2>&1 || true
-        }
-        
-        chmod 600 $HOME/.ssh/known_hosts
-        echo "✅ Known hosts updated"
-        
-        # 확인
+
+        # 에러가 발생해도 계속 진행하도록 설정
+        set +e
+
+        # ssh-keyscan 실행 (타임아웃 10초)
+        ssh-keyscan -T 10 -H "$HOST_ONLY" >> $HOME/.ssh/known_hosts 2>&1
+        SSH_KEYSCAN_EXIT=$?
+
+        if [ $SSH_KEYSCAN_EXIT -ne 0 ]; then
+          echo "⚠️ ssh-keyscan with -H failed (exit code: $SSH_KEYSCAN_EXIT), trying without -H..."
+          ssh-keyscan -T 10 "$HOST_ONLY" >> $HOME/.ssh/known_hosts 2>&1
+          SSH_KEYSCAN_EXIT2=$?
+
+          if [ $SSH_KEYSCAN_EXIT2 -ne 0 ]; then
+            echo "⚠️ ssh-keyscan failed (exit code: $SSH_KEYSCAN_EXIT2), but continuing..."
+            echo "SSH will use StrictHostKeyChecking=accept-new in subsequent steps"
+          else
+            echo "✅ ssh-keyscan succeeded without -H flag"
+          fi
+        else
+          echo "✅ ssh-keyscan succeeded"
+        fi
+
+        # 에러 처리 다시 활성화
+        set -e
+
+        # known_hosts 파일이 있으면 권한 설정
         if [ -f $HOME/.ssh/known_hosts ]; then
+          chmod 600 $HOME/.ssh/known_hosts
           echo "📋 Known hosts file contents:"
           cat $HOME/.ssh/known_hosts
+        else
+          echo "⚠️ known_hosts file was not created, but continuing..."
         fi
 
     - name: Deploy to EC2
@@ -55,7 +74,8 @@ jobs:
         EC2_HOST: ${{ secrets.EC2_HOST }}
       run: |
         echo "🚀 Deploying to EC2..."
-        rsync -avz --exclude 'model_weights' --exclude '__pycache__' \
+        rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts" \
+          --exclude 'model_weights' --exclude '__pycache__' \
           --exclude '*.pyc' --exclude '.pytest_cache' --exclude 'venv' \
           ./ $EC2_USER@$EC2_HOST:~/api/
         echo "✅ Files transferred successfully"
@@ -66,7 +86,8 @@ jobs:
         EC2_USER: ${{ secrets.EC2_USER }}
         EC2_HOST: ${{ secrets.EC2_HOST }}
       run: |
-        ssh $EC2_USER@$EC2_HOST << 'EOF'
+        ssh -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts \
+          $EC2_USER@$EC2_HOST << 'EOF'
           cd ~/api
 
           echo "📦 Setting up Python virtual environment..."
