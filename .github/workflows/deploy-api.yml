@@ -27,28 +27,28 @@ jobs:
         EC2_HOST: ${{ secrets.EC2_HOST }}
       run: |
         echo "🔐 Adding EC2 host to known_hosts..."
-        
+
         # EC2_HOST secret 검증
         if [ -z "$EC2_HOST" ]; then
           echo "❌ ERROR: EC2_HOST secret is empty or not set!"
           echo "Please set EC2_HOST secret in GitHub repository settings."
           exit 1
         fi
-        
+
         mkdir -p $HOME/.ssh
         chmod 700 $HOME/.ssh
 
-        # EC2_HOST에서 포트 번호 제거 (호스트만 추출)
-        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1 | xargs)
-        
+        # EC2_HOST에서 포트 번호 제거 및 공백 제거
+        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
         # 호스트명 검증
         if [ -z "$HOST_ONLY" ]; then
           echo "❌ ERROR: Could not extract hostname from EC2_HOST!"
-          echo "EC2_HOST value: '$EC2_HOST'"
+          echo "EC2_HOST value (length): ${#EC2_HOST}"
           exit 1
         fi
-        
-        echo "Extracted hostname: $HOST_ONLY"
+
+        echo "Extracted hostname: '$HOST_ONLY' (length: ${#HOST_ONLY})"
 
         # 에러가 발생해도 계속 진행하도록 설정
         set +e
@@ -91,7 +91,7 @@ jobs:
         EC2_HOST: ${{ secrets.EC2_HOST }}
       run: |
         echo "🔍 Testing SSH connection to EC2..."
-        
+
         # EC2_HOST secret 검증
         if [ -z "$EC2_HOST" ]; then
           echo "❌ ERROR: EC2_HOST secret is empty or not set!"
@@ -99,7 +99,7 @@ jobs:
           echo "Format: IP address (e.g., 3.39.230.121) or hostname"
           exit 1
         fi
-        
+
         # EC2_USER secret 검증
         if [ -z "$EC2_USER" ]; then
           echo "❌ ERROR: EC2_USER secret is empty or not set!"
@@ -107,31 +107,50 @@ jobs:
           echo "Format: ubuntu (for Ubuntu instances)"
           exit 1
         fi
-        
-        # 호스트명 추출 (포트 번호 제거)
-        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1 | xargs)
-        
+
+        # 호스트명 추출 (포트 번호 제거 및 공백 제거)
+        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        EC2_USER_CLEAN=$(echo "$EC2_USER" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
         # 추출된 호스트명 검증
         if [ -z "$HOST_ONLY" ]; then
           echo "❌ ERROR: Could not extract hostname from EC2_HOST!"
-          echo "EC2_HOST value: '$EC2_HOST'"
+          echo "EC2_HOST value (length): ${#EC2_HOST}"
+          echo "EC2_HOST value (hex): $(echo -n "$EC2_HOST" | xxd -p)"
           exit 1
         fi
-        
-        echo "Host: $HOST_ONLY"
-        echo "User: $EC2_USER"
-        echo "Full EC2_HOST: $EC2_HOST"
 
-        # 연결 테스트 (타임아웃 10초)
-        timeout 10 ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new \
+        echo "Host: '$HOST_ONLY' (length: ${#HOST_ONLY})"
+        echo "User: '$EC2_USER_CLEAN'"
+        echo "Full EC2_HOST: '$EC2_HOST'"
+
+        # SSH 연결 테스트 (verbose 모드로 더 자세한 정보)
+        echo "Attempting SSH connection..."
+        timeout 15 ssh -v -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new \
           -o UserKnownHostsFile=$HOME/.ssh/known_hosts \
-          $EC2_USER@$HOST_ONLY "echo 'SSH connection successful'" || {
-          echo "❌ SSH connection failed!"
+          $EC2_USER_CLEAN@$HOST_ONLY "echo 'SSH connection successful'" 2>&1 | head -20 || {
+          SSH_EXIT_CODE=$?
+          echo ""
+          echo "❌ SSH connection failed! (exit code: $SSH_EXIT_CODE)"
+          echo ""
           echo "Possible causes:"
-          echo "1. EC2 instance is not running"
-          echo "2. Security group doesn't allow SSH from GitHub Actions IP"
-          echo "3. EC2_HOST secret is incorrect (current value: '$EC2_HOST')"
-          echo "4. Network connectivity issue"
+          echo "1. EC2 instance is not running (check AWS console)"
+          echo "2. Security group doesn't allow SSH (port 22) from GitHub Actions IP"
+          echo "   - GitHub Actions uses dynamic IPs"
+          echo "   - Temporarily allow 0.0.0.0/0 for SSH (port 22) for testing"
+          echo "3. EC2_HOST secret is incorrect"
+          echo "   - Expected: IP address like '3.39.230.121'"
+          echo "   - Current value: '$EC2_HOST'"
+          echo "   - Extracted hostname: '$HOST_ONLY'"
+          echo "4. EC2_USER secret is incorrect"
+          echo "   - Expected: 'ubuntu' for Ubuntu instances"
+          echo "   - Current value: '$EC2_USER'"
+          echo "5. Network connectivity issue"
+          echo ""
+          echo "To debug:"
+          echo "- Check EC2 instance status in AWS console"
+          echo "- Verify security group allows SSH from 0.0.0.0/0 (temporarily)"
+          echo "- Verify EC2_HOST and EC2_USER secrets are correct"
           exit 1
         }
         echo "✅ SSH connection test passed"
@@ -143,13 +162,14 @@ jobs:
         EC2_HOST: ${{ secrets.EC2_HOST }}
       run: |
         echo "🚀 Deploying to EC2..."
-        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1)
-        echo "Deploying to: $EC2_USER@$HOST_ONLY"
+        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        EC2_USER_CLEAN=$(echo "$EC2_USER" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        echo "Deploying to: $EC2_USER_CLEAN@$HOST_ONLY"
 
         rsync -avz -e "ssh -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts" \
           --exclude 'model_weights' --exclude '__pycache__' \
           --exclude '*.pyc' --exclude '.pytest_cache' --exclude 'venv' \
-          ./ $EC2_USER@$HOST_ONLY:~/api/ || {
+          ./ $EC2_USER_CLEAN@$HOST_ONLY:~/api/ || {
           echo "❌ rsync failed!"
           echo "Check if EC2 instance is running and accessible"
           exit 1
@@ -162,9 +182,10 @@ jobs:
         EC2_USER: ${{ secrets.EC2_USER }}
         EC2_HOST: ${{ secrets.EC2_HOST }}
       run: |
-        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1)
+        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        EC2_USER_CLEAN=$(echo "$EC2_USER" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         ssh -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts \
-          $EC2_USER@$HOST_ONLY << 'EOF'
+          $EC2_USER_CLEAN@$HOST_ONLY << 'EOF'
           cd ~/api
 
           echo "📦 Setting up Python virtual environment..."
