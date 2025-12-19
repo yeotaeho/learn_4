@@ -165,15 +165,55 @@ jobs:
         HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         EC2_USER_CLEAN=$(echo "$EC2_USER" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         echo "Deploying to: $EC2_USER_CLEAN@$HOST_ONLY"
+        echo "Current directory: $(pwd)"
+        echo "Files to sync: $(ls -la | head -10)"
 
-        rsync -avz -e "ssh -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts" \
-          --exclude 'model_weights' --exclude '__pycache__' \
-          --exclude '*.pyc' --exclude '.pytest_cache' --exclude 'venv' \
-          ./ $EC2_USER_CLEAN@$HOST_ONLY:~/api/ || {
-          echo "❌ rsync failed!"
-          echo "Check if EC2 instance is running and accessible"
+        # rsync 재시도 로직 (최대 3회)
+        MAX_RETRIES=3
+        RETRY_COUNT=0
+        RSYNC_SUCCESS=false
+
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          echo ""
+          echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES: Syncing files..."
+          
+          rsync -avz --progress \
+            -e "ssh -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts -v" \
+            --exclude 'model_weights' --exclude '__pycache__' \
+            --exclude '*.pyc' --exclude '.pytest_cache' --exclude 'venv' \
+            ./ $EC2_USER_CLEAN@$HOST_ONLY:~/api/ && {
+            RSYNC_SUCCESS=true
+            break
+          }
+          
+          RSYNC_EXIT_CODE=$?
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          
+          if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            echo "⚠️ rsync failed (exit code: $RSYNC_EXIT_CODE), retrying in 5 seconds..."
+            sleep 5
+          fi
+        done
+
+        if [ "$RSYNC_SUCCESS" = false ]; then
+          echo ""
+          echo "❌ rsync failed after $MAX_RETRIES attempts!"
+          echo ""
+          echo "Troubleshooting steps:"
+          echo "1. Verify EC2 instance is running:"
+          echo "   - AWS Console → EC2 → Instances → Check status"
+          echo "2. Verify security group allows SSH:"
+          echo "   - EC2 → Security Groups → Inbound rules"
+          echo "   - Type: SSH, Port: 22, Source: 0.0.0.0/0 (for testing)"
+          echo "3. Verify EC2_HOST secret matches Public IP:"
+          echo "   - Current EC2_HOST: '$EC2_HOST'"
+          echo "   - Check Public IPv4 in AWS Console"
+          echo "4. Test SSH connection manually:"
+          echo "   ssh $EC2_USER_CLEAN@$HOST_ONLY"
           exit 1
-        }
+        fi
+        
+        echo ""
         echo "✅ Files transferred successfully"
 
     - name: Install dependencies and restart service
