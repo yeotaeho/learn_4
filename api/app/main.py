@@ -37,22 +37,26 @@ async def lifespan(app: FastAPI):
     # LLM 초기화 (미리 로드)
     get_llm()
 
-    # QLoRA 서비스 초기화
-    try:
-        print("🔄 QLoRA 서비스 초기화 중...", flush=True)
-        qlora_service = QLoRAService(
-            model_path=settings.LOCAL_MODEL_PATH,
-            adapter_path=None,
-            device=settings.LOCAL_MODEL_DEVICE,
-        )
-        # 모델 로드 (출력이 나오도록)
-        qlora_service._load_model()
-        set_qlora_service(qlora_service)
-        print("✅ QLoRA 서비스 초기화 완료", flush=True)
+    # QLoRA 서비스 초기화 (로컬 모델 사용 시에만)
+    if settings.is_local_llm:
+        try:
+            print("🔄 QLoRA 서비스 초기화 중...", flush=True)
+            qlora_service = QLoRAService(
+                model_path=settings.LOCAL_MODEL_PATH,
+                adapter_path=None,
+                device=settings.LOCAL_MODEL_DEVICE,
+            )
+            # 모델 로드 (출력이 나오도록)
+            qlora_service._load_model()
+            set_qlora_service(qlora_service)
+            print("✅ QLoRA 서비스 초기화 완료", flush=True)
 
-    except Exception as e:
-        print(f"⚠️ QLoRA 서비스 초기화 실패: {e}", flush=True)
-        print("   QLoRA 기능은 사용할 수 없습니다.", flush=True)
+        except Exception as e:
+            print(f"⚠️ QLoRA 서비스 초기화 실패: {e}", flush=True)
+            print("   QLoRA 기능은 사용할 수 없습니다.", flush=True)
+            set_qlora_service(None)
+    else:
+        print("ℹ️  QLoRA 서비스는 로컬 모델 사용 시에만 사용 가능합니다.", flush=True)
         set_qlora_service(None)
 
     yield
@@ -73,7 +77,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.APP_NAME,
         version=settings.APP_VERSION,
-        description="RAG 방식의 챗봇 API 서버 (로컬 LLM 지원)",
+        description="RAG 방식의 챗봇 API 서버 (OpenAI 및 로컬 LLM 지원)",
         docs_url="/docs",
         redoc_url="/redoc",
         lifespan=lifespan,

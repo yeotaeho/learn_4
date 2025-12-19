@@ -21,18 +21,23 @@ if __name__ == "__main__":
     run_file_dir = Path(__file__).parent.absolute()
     model_weights_path = run_file_dir / "model_weights"
 
-    # 환경변수 기본값 설정 (로컬 실행용)
-    os.environ.setdefault("LLM_PROVIDER", "local")
-    os.environ.setdefault("LOCAL_MODEL_PATH", str(model_weights_path))
-    os.environ.setdefault("LOCAL_MODEL_DEVICE", "cuda")
+    # 환경변수 기본값 설정 (OpenAI 사용)
+    os.environ.setdefault("LLM_PROVIDER", "openai")
+    os.environ.setdefault("OPENAI_MODEL", "gpt-4o-mini")
+    os.environ.setdefault("OPENAI_TEMPERATURE", "0.7")
     os.environ.setdefault("DATABASE_URL", NEON_DATABASE_URL)
 
     # 개발 모드 설정
     debug = os.getenv("DEBUG", "true").lower() == "true"
 
-    print("🚀 로컬 서버 시작...")
+    print("🚀 서버 시작...")
     print(f"📦 LLM Provider: {os.getenv('LLM_PROVIDER')}")
-    print(f"📂 Model Path: {os.getenv('LOCAL_MODEL_PATH')}")
+    if os.getenv("LLM_PROVIDER", "openai") == "openai":
+        print(f"🤖 OpenAI Model: {os.getenv('OPENAI_MODEL', 'gpt-4o-mini')}")
+        if not os.getenv("OPENAI_API_KEY"):
+            print("⚠️  경고: OPENAI_API_KEY 환경변수가 설정되지 않았습니다.")
+    else:
+        print(f"📂 Model Path: {os.getenv('LOCAL_MODEL_PATH', 'N/A')}")
     print(f"🗄️  Database: Neon PostgreSQL (ap-southeast-1)")
     print(f"🔧 Debug Mode: {debug}")
     print()

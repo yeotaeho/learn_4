@@ -35,12 +35,12 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # LLM 설정
-    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "local")  # "openai" 또는 "local"
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openai")  # "openai" 또는 "local"
 
     # OpenAI 설정 (LLM_PROVIDER=openai일 때 사용)
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_MODEL: str = "gpt-3.5-turbo"
-    OPENAI_TEMPERATURE: float = 0.7
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    OPENAI_TEMPERATURE: float = float(os.getenv("OPENAI_TEMPERATURE", "0.7"))
 
     # 로컬 모델 설정 (LLM_PROVIDER=local일 때 사용)
     LOCAL_MODEL_PATH: str = os.getenv(
