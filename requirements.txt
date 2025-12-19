@@ -18,14 +18,14 @@ psycopg2-binary>=2.9.0
 pgvector>=0.2.0
 sqlalchemy>=2.0.0
 
-# HuggingFace 로컬 모델
+# HuggingFace 로컬 모델 (CPU 지원)
 transformers>=4.40.0
 torch>=2.0.0
 accelerate>=0.27.0
 sentencepiece>=0.1.99
 sentence-transformers>=2.2.0
 
-# QLoRA 및 파인튜닝
+# 파인튜닝 (CPU 지원, QLoRA는 GPU 필요)
 peft>=0.7.0
 datasets>=2.14.0
-bitsandbytes>=0.41.0
+# bitsandbytes>=0.41.0  # GPU 전용, CPU에서는 제외

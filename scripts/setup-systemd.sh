@@ -59,3 +59,4 @@ echo "  서비스 상태:    sudo systemctl status fastapi.service"
 echo "  로그 확인:      sudo journalctl -u fastapi.service -f"
 echo "  로그 파일:      tail -f /var/log/fastapi.log"
 
+

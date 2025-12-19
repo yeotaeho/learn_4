@@ -11,21 +11,21 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-    
+
     - name: Setup SSH
       uses: webfactory/ssh-agent@v0.8.0
       with:
         ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
-    
+
     - name: Add EC2 to known hosts
       run: |
         mkdir -p ~/.ssh
         ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-    
+
     - name: Deploy to EC2
       env:
         EC2_USER: ${{ secrets.EC2_USER }}
@@ -36,7 +36,7 @@ jobs:
           --exclude '*.pyc' --exclude '.pytest_cache' --exclude 'venv' \
           ./api/ $EC2_USER@$EC2_HOST:~/api/
         echo "✅ Files transferred successfully"
-    
+
     - name: Install dependencies and restart service
       env:
         EC2_USER: ${{ secrets.EC2_USER }}
@@ -44,23 +44,23 @@ jobs:
       run: |
         ssh $EC2_USER@$EC2_HOST << 'EOF'
           cd ~/api
-          
+
           echo "📦 Setting up Python virtual environment..."
           if [ ! -d "venv" ]; then
             python3 -m venv venv
           fi
-          
+
           echo "📥 Installing dependencies..."
           source venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-          
+
           echo "🔄 Restarting FastAPI service..."
           sudo systemctl restart fastapi.service
-          
+
           echo "✅ Deployment completed!"
         EOF
-    
+
     - name: Health Check
       env:
         EC2_HOST: ${{ secrets.EC2_HOST }}
@@ -74,4 +74,5 @@ jobs:
           echo "⚠️ Health check returned HTTP $response"
           echo "Service might still be starting up..."
         fi
+
 
