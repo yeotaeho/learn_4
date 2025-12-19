@@ -5,17 +5,35 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
-import torch
-from datasets import Dataset
-from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    BitsAndBytesConfig,
-    TrainingArguments,
-    Trainer,
-    DataCollatorForLanguageModeling,
-)
+# QLoRA 관련 import는 조건부로 처리 (OpenAI 사용 시 불필요)
+try:
+    import torch
+    from datasets import Dataset
+    from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
+    from transformers import (
+        AutoModelForCausalLM,
+        AutoTokenizer,
+        BitsAndBytesConfig,
+        TrainingArguments,
+        Trainer,
+        DataCollatorForLanguageModeling,
+    )
+    QLORA_AVAILABLE = True
+except ImportError:
+    QLORA_AVAILABLE = False
+    # QLoRA 관련 타입 힌트를 위한 더미 클래스
+    torch = None  # type: ignore
+    Dataset = None  # type: ignore
+    LoraConfig = None  # type: ignore
+    PeftModel = None  # type: ignore
+    get_peft_model = None  # type: ignore
+    prepare_model_for_kbit_training = None  # type: ignore
+    AutoModelForCausalLM = None  # type: ignore
+    AutoTokenizer = None  # type: ignore
+    BitsAndBytesConfig = None  # type: ignore
+    TrainingArguments = None  # type: ignore
+    Trainer = None  # type: ignore
+    DataCollatorForLanguageModeling = None  # type: ignore
 
 from langchain_community.vectorstores import PGVector
 from langchain_core.output_parsers import StrOutputParser
@@ -166,18 +184,25 @@ class QLoRAService:
         self.lora_dropout = lora_dropout
         self.target_modules = target_modules
 
-        self.model: Optional[AutoModelForCausalLM] = None
-        self.tokenizer: Optional[AutoTokenizer] = None
+        self.model: Optional[Any] = None  # AutoModelForCausalLM 타입 힌트 (조건부 import)
+        self.tokenizer: Optional[Any] = None  # AutoTokenizer 타입 힌트 (조건부 import)
         self._is_loaded = False
 
     def _load_model(self) -> None:
         """QLoRA 모델 로드."""
+        if not QLORA_AVAILABLE:
+            raise ImportError(
+                "QLoRA 기능을 사용하려면 torch, transformers, peft, datasets 패키지가 필요합니다. "
+                "pip install torch transformers peft datasets bitsandbytes"
+            )
         if self._is_loaded:
             return
 
         print(f"🔄 QLoRA 모델 로딩 중: {self.model_path}")
 
         # 디바이스 설정
+        if not QLORA_AVAILABLE or torch is None:
+            raise ImportError("torch가 설치되지 않았습니다.")
         if self.device == "auto":
             device_map = "auto"
         elif self.device == "cuda" and torch.cuda.is_available():
@@ -271,6 +296,8 @@ class QLoRAService:
         )
 
         # 디바이스로 이동
+        if not QLORA_AVAILABLE or torch is None:
+            raise ImportError("torch가 설치되지 않았습니다.")
         if self.device == "cuda" and torch.cuda.is_available():
             inputs = {k: v.to("cuda") for k, v in inputs.items()}
 
@@ -362,6 +389,8 @@ class QLoRAService:
             return {"text": prompt}
 
         # 데이터셋 생성
+        if not QLORA_AVAILABLE or Dataset is None:
+            raise ImportError("datasets 패키지가 설치되지 않았습니다.")
         dataset = Dataset.from_list(training_data)
         dataset = dataset.map(format_prompt)
 
@@ -432,6 +461,8 @@ class QLoRAService:
         if not self._is_loaded:
             raise ValueError("모델이 로드되지 않았습니다. 먼저 _load_model()을 호출하세요.")
 
+        if not QLORA_AVAILABLE or PeftModel is None:
+            raise ImportError("peft 패키지가 설치되지 않았습니다.")
         if isinstance(self.model, PeftModel):
             self.model.save_pretrained(adapter_path)
             print(f"✅ LoRA 어댑터 저장 완료: {adapter_path}")
@@ -444,7 +475,7 @@ class QLoRAService:
             del self.model
             del self.tokenizer
 
-            if torch.cuda.is_available():
+            if QLORA_AVAILABLE and torch is not None and torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
             self.model = None
