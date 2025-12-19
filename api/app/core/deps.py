@@ -3,7 +3,7 @@
 from typing import Any, Optional
 
 from langchain_community.vectorstores import PGVector
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_openai import OpenAIEmbeddings
 
 from .config import settings
 from ..data.documents import RAG_DOCUMENTS
@@ -18,14 +18,14 @@ _llm: Optional[Any] = None
 _qlora_service: Optional[Any] = None
 
 
-def get_embeddings() -> HuggingFaceEmbeddings:
-    """HuggingFace 임베딩 인스턴스 반환.
+def get_embeddings() -> OpenAIEmbeddings:
+    """OpenAI 임베딩 인스턴스 반환.
 
-    로컬 모델 사용 시 무료 임베딩 모델 사용.
+    OpenAI API를 사용하여 텍스트 임베딩 생성.
     """
-    return HuggingFaceEmbeddings(
-        model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-        model_kwargs={"device": "cpu"},  # 임베딩은 CPU에서 실행
+    return OpenAIEmbeddings(
+        model=settings.OPENAI_EMBEDDING_MODEL,
+        openai_api_key=settings.OPENAI_API_KEY,
     )
 
 

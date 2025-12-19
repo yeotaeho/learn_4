@@ -10,7 +10,6 @@ python-dotenv>=1.0.0
 # LangChain
 langchain-core>=0.1.0
 langchain-community>=0.0.20
-langchain-huggingface>=0.0.1
 langchain-openai>=0.0.1
 
 # 데이터베이스
@@ -18,14 +17,13 @@ psycopg2-binary>=2.9.0
 pgvector>=0.2.0
 sqlalchemy>=2.0.0
 
-# HuggingFace 로컬 모델 (CPU 지원)
-transformers>=4.40.0
-torch>=2.0.0
-accelerate>=0.27.0
-sentencepiece>=0.1.99
-sentence-transformers>=2.2.0
-
-# 파인튜닝 (CPU 지원, QLoRA는 GPU 필요)
-peft>=0.7.0
-datasets>=2.14.0
-# bitsandbytes>=0.41.0  # GPU 전용, CPU에서는 제외
+# 로컬 모델 관련 패키지 제거 (OpenAI 사용 시 불필요)
+# transformers>=4.40.0
+# torch>=2.0.0
+# accelerate>=0.27.0
+# sentencepiece>=0.1.99
+# sentence-transformers>=2.2.0
+# langchain-huggingface>=0.0.1
+# peft>=0.7.0
+# datasets>=2.14.0
+# bitsandbytes>=0.41.0
