@@ -27,11 +27,28 @@ jobs:
         EC2_HOST: ${{ secrets.EC2_HOST }}
       run: |
         echo "🔐 Adding EC2 host to known_hosts..."
+        
+        # EC2_HOST secret 검증
+        if [ -z "$EC2_HOST" ]; then
+          echo "❌ ERROR: EC2_HOST secret is empty or not set!"
+          echo "Please set EC2_HOST secret in GitHub repository settings."
+          exit 1
+        fi
+        
         mkdir -p $HOME/.ssh
         chmod 700 $HOME/.ssh
 
         # EC2_HOST에서 포트 번호 제거 (호스트만 추출)
-        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1)
+        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1 | xargs)
+        
+        # 호스트명 검증
+        if [ -z "$HOST_ONLY" ]; then
+          echo "❌ ERROR: Could not extract hostname from EC2_HOST!"
+          echo "EC2_HOST value: '$EC2_HOST'"
+          exit 1
+        fi
+        
+        echo "Extracted hostname: $HOST_ONLY"
 
         # 에러가 발생해도 계속 진행하도록 설정
         set +e
@@ -74,10 +91,37 @@ jobs:
         EC2_HOST: ${{ secrets.EC2_HOST }}
       run: |
         echo "🔍 Testing SSH connection to EC2..."
-        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1)
+        
+        # EC2_HOST secret 검증
+        if [ -z "$EC2_HOST" ]; then
+          echo "❌ ERROR: EC2_HOST secret is empty or not set!"
+          echo "Please set EC2_HOST secret in GitHub repository settings."
+          echo "Format: IP address (e.g., 3.39.230.121) or hostname"
+          exit 1
+        fi
+        
+        # EC2_USER secret 검증
+        if [ -z "$EC2_USER" ]; then
+          echo "❌ ERROR: EC2_USER secret is empty or not set!"
+          echo "Please set EC2_USER secret in GitHub repository settings."
+          echo "Format: ubuntu (for Ubuntu instances)"
+          exit 1
+        fi
+        
+        # 호스트명 추출 (포트 번호 제거)
+        HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1 | xargs)
+        
+        # 추출된 호스트명 검증
+        if [ -z "$HOST_ONLY" ]; then
+          echo "❌ ERROR: Could not extract hostname from EC2_HOST!"
+          echo "EC2_HOST value: '$EC2_HOST'"
+          exit 1
+        fi
+        
         echo "Host: $HOST_ONLY"
         echo "User: $EC2_USER"
-        
+        echo "Full EC2_HOST: $EC2_HOST"
+
         # 연결 테스트 (타임아웃 10초)
         timeout 10 ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new \
           -o UserKnownHostsFile=$HOME/.ssh/known_hosts \
@@ -86,7 +130,7 @@ jobs:
           echo "Possible causes:"
           echo "1. EC2 instance is not running"
           echo "2. Security group doesn't allow SSH from GitHub Actions IP"
-          echo "3. EC2_HOST secret is incorrect"
+          echo "3. EC2_HOST secret is incorrect (current value: '$EC2_HOST')"
           echo "4. Network connectivity issue"
           exit 1
         }
@@ -101,7 +145,7 @@ jobs:
         echo "🚀 Deploying to EC2..."
         HOST_ONLY=$(echo "$EC2_HOST" | cut -d: -f1)
         echo "Deploying to: $EC2_USER@$HOST_ONLY"
-        
+
         rsync -avz -e "ssh -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts" \
           --exclude 'model_weights' --exclude '__pycache__' \
           --exclude '*.pyc' --exclude '.pytest_cache' --exclude 'venv' \
