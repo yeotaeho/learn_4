@@ -11,6 +11,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./api
 
     steps:
     - name: Checkout code
@@ -34,7 +37,7 @@ jobs:
         echo "🚀 Deploying to EC2..."
         rsync -avz --exclude 'model_weights' --exclude '__pycache__' \
           --exclude '*.pyc' --exclude '.pytest_cache' --exclude 'venv' \
-          ./api/ $EC2_USER@$EC2_HOST:~/api/
+          ./ $EC2_USER@$EC2_HOST:~/api/
         echo "✅ Files transferred successfully"
 
     - name: Install dependencies and restart service
