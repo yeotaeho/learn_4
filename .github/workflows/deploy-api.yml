@@ -176,7 +176,7 @@ jobs:
         while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
           echo ""
           echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES: Syncing files..."
-          
+
           rsync -avz --progress \
             -e "ssh -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts -v" \
             --exclude 'model_weights' --exclude '__pycache__' \
@@ -185,10 +185,10 @@ jobs:
             RSYNC_SUCCESS=true
             break
           }
-          
+
           RSYNC_EXIT_CODE=$?
           RETRY_COUNT=$((RETRY_COUNT + 1))
-          
+
           if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
             echo "⚠️ rsync failed (exit code: $RSYNC_EXIT_CODE), retrying in 5 seconds..."
             sleep 5
@@ -212,7 +212,7 @@ jobs:
           echo "   ssh $EC2_USER_CLEAN@$HOST_ONLY"
           exit 1
         fi
-        
+
         echo ""
         echo "✅ Files transferred successfully"
 
