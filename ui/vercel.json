@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "http://api.yeotaeho.kr:8000/api/:path*"
+    }
+  ]
+}
+

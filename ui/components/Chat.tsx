@@ -14,14 +14,19 @@ interface TrainingData {
   output: string
 }
 
-// HTTP를 HTTPS로 자동 변환하는 헬퍼 함수
+// Vercel 프록시를 사용하므로 상대 경로 사용
 const getApiUrl = (): string => {
-  const envUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.yeotaeho.kr'
-  // HTTP URL을 HTTPS로 변환
-  if (envUrl.startsWith('http://')) {
-    return envUrl.replace('http://', 'https://').replace(':8000', '')
+  // 환경 변수가 설정되어 있고 절대 URL이면 그대로 사용
+  const envUrl = process.env.NEXT_PUBLIC_API_URL
+  if (envUrl && (envUrl.startsWith('http://') || envUrl.startsWith('https://'))) {
+    // HTTP URL을 HTTPS로 변환 (프록시 미사용 시)
+    if (envUrl.startsWith('http://')) {
+      return envUrl.replace('http://', 'https://').replace(':8000', '')
+    }
+    return envUrl
   }
-  return envUrl
+  // Vercel 프록시 사용: 상대 경로 반환
+  return ''
 }
 
 export default function Chat() {
