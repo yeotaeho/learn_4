@@ -49,7 +49,7 @@ export default function Chat() {
     setIsLoading(true)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.yeotaeho.kr'
       const response = await fetch(`${apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -120,7 +120,7 @@ export default function Chat() {
     setTrainingStatus('학습을 시작합니다...')
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.yeotaeho.kr'
       const response = await fetch(`${apiUrl}/api/qlora/train`, {
         method: 'POST',
         headers: {
