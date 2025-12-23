@@ -14,6 +14,16 @@ interface TrainingData {
   output: string
 }
 
+// HTTP를 HTTPS로 자동 변환하는 헬퍼 함수
+const getApiUrl = (): string => {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.yeotaeho.kr'
+  // HTTP URL을 HTTPS로 변환
+  if (envUrl.startsWith('http://')) {
+    return envUrl.replace('http://', 'https://').replace(':8000', '')
+  }
+  return envUrl
+}
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -49,7 +59,7 @@ export default function Chat() {
     setIsLoading(true)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.yeotaeho.kr'
+      const apiUrl = getApiUrl()
       const response = await fetch(`${apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -120,7 +130,7 @@ export default function Chat() {
     setTrainingStatus('학습을 시작합니다...')
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.yeotaeho.kr'
+      const apiUrl = getApiUrl()
       const response = await fetch(`${apiUrl}/api/qlora/train`, {
         method: 'POST',
         headers: {
