@@ -14,21 +14,6 @@ interface TrainingData {
   output: string
 }
 
-// Vercel 프록시를 사용하므로 상대 경로 사용
-const getApiUrl = (): string => {
-  // 환경 변수가 설정되어 있고 절대 URL이면 그대로 사용
-  const envUrl = process.env.NEXT_PUBLIC_API_URL
-  if (envUrl && (envUrl.startsWith('http://') || envUrl.startsWith('https://'))) {
-    // HTTP URL을 HTTPS로 변환 (프록시 미사용 시)
-    if (envUrl.startsWith('http://')) {
-      return envUrl.replace('http://', 'https://').replace(':8000', '')
-    }
-    return envUrl
-  }
-  // Vercel 프록시 사용: 상대 경로 반환
-  return ''
-}
-
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -64,7 +49,7 @@ export default function Chat() {
     setIsLoading(true)
 
     try {
-      const apiUrl = getApiUrl()
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL
       const response = await fetch(`${apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -135,7 +120,7 @@ export default function Chat() {
     setTrainingStatus('학습을 시작합니다...')
 
     try {
-      const apiUrl = getApiUrl()
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
       const response = await fetch(`${apiUrl}/api/qlora/train`, {
         method: 'POST',
         headers: {
