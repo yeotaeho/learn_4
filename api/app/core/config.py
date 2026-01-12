@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # LLM 설정
-    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openai")  # "openai" 또는 "local"
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "local")  # "openai" 또는 "local"
 
     # OpenAI 설정 (LLM_PROVIDER=openai일 때 사용)
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
